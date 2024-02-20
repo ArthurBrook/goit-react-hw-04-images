@@ -43,7 +43,6 @@ const App = () => {
       const response = await axios.get(
         `https://pixabay.com/api/?q=${query}&page=${page}&key=42244155-8c54490789349f44f8e631503&image_type=photo&orientation=horizontal&per_page=12`
       );
-
       const { hits, totalHits } = response.data;
       setTotalHits(totalHits);
       setImages((prevImages) => (page === 1 ? hits : [...prevImages, ...hits]));

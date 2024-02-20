@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Searchbar from './Searchbar';
 import ImageGallery from './ImageGallery';
@@ -7,57 +7,37 @@ import Loader from './Loader';
 import Modal from './Modal';
 import './styles.css';
 
-class App extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      query: '',
-      images: [],
-      page: 1,
-      totalHits: null,
-      isLoading: false,
-      selectedImage: null,
-    };
-  }
+const App = () => {
+  const [query, setQuery] = useState('');
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalHits, setTotalHits] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [initialPageLoad, setInitialPageLoad] = useState(true);
 
-  handleSearchSubmit = (newQuery) => {
-    this.setState(
-      {
-        query: newQuery,
-        page: 1,
-        images: [],
-        totalHits: null,
-      },
-      this.fetchImages
-    );
-  };
+  const handleSearchSubmit = useCallback((newQuery) => {
+    setQuery(newQuery);
+    setPage(1);
+    setImages([]);
+    setTotalHits(null);
+    setInitialPageLoad(false);
+  }, []);
 
-  handleLoadMore = () => {
-    this.setState(
-      (prevState) => ({
-        page: prevState.page + 1,
-      }),
-      this.fetchImages
-    );
-  };
+  const handleLoadMore = useCallback(() => {
+    setPage((prevPage) => prevPage + 1);
+  }, []);
 
-  handleImageClick = (largeImageURL) => {
-    this.setState({
-      selectedImage: largeImageURL,
-    });
-  };
+  const handleImageClick = useCallback((largeImageURL) => {
+    setSelectedImage(largeImageURL);
+  }, []);
 
-  handleCloseModal = () => {
-    this.setState({
-      selectedImage: null,
-    });
-  };
+  const handleCloseModal = useCallback(() => {
+    setSelectedImage(null);
+  }, []);
 
-  fetchImages = async () => {
-    const { query, page } = this.state;
-    this.setState({
-      isLoading: true,
-    });
+  const fetchImages = useCallback(async () => {
+    setIsLoading(true);
 
     try {
       const response = await axios.get(
@@ -65,38 +45,35 @@ class App extends Component {
       );
 
       const { hits, totalHits } = response.data;
-      this.setState((prevState) => ({
-        totalHits,
-        images: page === 1 ? hits : [...prevState.images, ...hits],
-      }));
+      setTotalHits(totalHits);
+      setImages((prevImages) => (page === 1 ? hits : [...prevImages, ...hits]));
     } catch (error) {
       console.error('Error fetching images:', error);
     } finally {
-      this.setState({
-        isLoading: false,
-      });
+      setIsLoading(false);
     }
-  };
+  }, [query, page]);
 
-  render() {
-    const { images, totalHits, isLoading, selectedImage } = this.state;
+  useEffect(() => {
+    if (!initialPageLoad) {
+      fetchImages();
+    }
+  }, [initialPageLoad, fetchImages]);
 
-    return (
-      <div className="App">
-        <Searchbar onSubmit={this.handleSearchSubmit} />
+  return (
+    <div className="App">
+      <Searchbar onSubmit={handleSearchSubmit} />
+      <ImageGallery images={images} onImageClick={handleImageClick} />
+      
+      {isLoading && <Loader />}
 
-        <ImageGallery images={images} onImageClick={this.handleImageClick} />
+      {images.length > 0 && images.length < totalHits && !isLoading && (
+        <Button onLoadMore={handleLoadMore} />
+      )}
 
-        {isLoading && <Loader />}
-
-        {images.length > 0 && images.length < totalHits && !isLoading && (
-  <Button onLoadMore={this.handleLoadMore} />
-)}
-
-        {selectedImage && <Modal largeImageURL={selectedImage} onClose={this.handleCloseModal} />}
-      </div>
-    );
-  }
-}
+      {selectedImage && <Modal largeImageURL={selectedImage} onClose={handleCloseModal} />}
+    </div>
+  );
+};
 
 export default App;
